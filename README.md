@@ -1,0 +1,161 @@
+# Handmade Whiteboard (Excalidraw Reverse-Engineered Clone)
+
+> **Created using Reverse Engineering with the Antigravity Agent and REA (Reverse Engineer Anything) Tools.**  
+> Target reference application: [Excalidraw](https://excalidraw.com/)
+
+---
+
+## 📖 Overview
+
+This repository contains a lightweight, zero-dependency whiteboard application with hand-drawn vector rendering. It was built by reverse-engineering the shape rendering pipeline of [https://excalidraw.com/](https://excalidraw.com/) using Google DeepMind's **Antigravity Agent** paired with **REA (Reverse Engineer Anything)** MCP tools.
+
+---
+
+## 🎯 The Original Prompt
+
+Below is the prompt submitted to the Antigravity Agent to investigate Excalidraw, extract runtime evidence, and construct this project:
+
+```text
+https://excalidraw.com/
+Understand how handmade shape drawingworks  in the excelidraw  app, show me the evidence, and build a
+similar feature for my project. Just do these things : Handmade circle rectangle rombos bullet point add  and able to add text 
+Don't do anything outside project repo..just work in {folder name} and use rea tools 
+```
+
+---
+
+## 🛠️ How to Initialize REA Tools in Local Machine with Antigravity Agent
+
+Follow these step-by-step instructions to set up the **REA (Reverse Engineer Anything)** engine on your local machine so your Antigravity Agent can inspect, capture, and reverse engineer web and native targets:
+
+### Step 1: Prerequisites
+- **Node.js**: Version 18 or newer installed (`node -v`).
+- **Google Chrome** or **Chromium**: Installed at standard path (e.g. `C:\Program Files\Google\Chrome\Application\chrome.exe` on Windows, `/usr/bin/google-chrome` on Linux, `/Applications/Google Chrome.app` on macOS).
+- **Antigravity CLI / IDE**: The Antigravity Agent development environment.
+
+### Step 2: Install REA Tools
+Install `rea-agents` globally or run it directly via `npx`:
+
+```bash
+# Global installation (recommended)
+npm install -g rea-agents
+
+# Verify the CLI binary is available
+rea --version
+```
+
+### Step 3: Configure REA for Antigravity Client
+Run the automated setup command targeting the `antigravity` client:
+
+```bash
+# Dry run to preview configuration paths and MCP registration
+npx -y rea-agents setup --client antigravity --dry-run --json
+
+# Apply setup and register REA MCP tools in Antigravity
+npx -y rea-agents setup --client antigravity --yes
+```
+
+This registers the REA MCP server under your Antigravity environment (`~/.gemini/antigravity/mcp/rea/` or client configuration), exposing tools such as:
+- `capture_browser_scenario`: Headless/headed Playwright scenarios for dynamic application interaction.
+- `inspect_web_page`: Passive CDP DOM, accessibility, network, and resource inspection.
+- `analyze_web_bundle`: Static parsing of JavaScript chunks, bundles, and source maps.
+- `recover_javascript_sources`: Extraction and reconstruction of client-side scripts.
+
+### Step 4: Verify REA Health
+Confirm that the MCP registration, tool definitions, and browser providers are operational:
+
+```bash
+npx -y rea-agents doctor --client antigravity --json
+# or
+rea doctor
+```
+
+Restart your Antigravity session if prompted so the agent detects the registered REA tools.
+
+---
+
+## 🔍 Reverse Engineering Findings & Evidence from Excalidraw
+
+Using REA's `capture_browser_scenario` and CDP inspection on [https://excalidraw.com/](https://excalidraw.com/), the following core findings and evidence were gathered:
+
+### 1. Dual Canvas Architecture
+Inspection of the DOM revealed that Excalidraw uses a two-layered canvas architecture:
+```html
+<canvas width="1280" height="720" class="excalidraw__canvas static"></canvas>
+<canvas width="1280" height="720" class="excalidraw__canvas interactive">Drawing canvas</canvas>
+```
+- **Static Canvas (`excalidraw__canvas static`)**: Renders all committed elements in the scene. Elements are rendered deterministically using an assigned random `seed` so they do not wiggle on re-renders.
+- **Interactive Canvas (`excalidraw__canvas interactive`)**: Handles user pointer events and renders ephemeral objects during dragging (shape previews while drawing, selection boxes, and transform handles) without re-rendering the heavy static canvas.
+
+### 2. Hand-Drawn Mechanics (Rough.js Core)
+Excalidraw relies on **Rough.js** (`rough.generator()` / `RoughCanvas`):
+- **Double-Stroke Drawing**: Human hands don't draw perfectly straight lines; they sketch over a line twice. The engine draws each line twice with slight perpendicular bowing and random offsets.
+- **Seeded Pseudo-Random Number Generator (PRNG)**: Without a deterministic seed, calling `Math.random()` would cause shapes to morph and jitter every time the canvas refreshes. Each element stores a persistent integer `seed` driving a Linear Congruential Generator.
+- **Corner Overshoots**: Rectangles and polygons intentionally overshoot corner vertices by $1\text{px} - 3\text{px}$, matching human hand sketches where line strokes intersect rather than ending with CAD precision.
+- **Overlapping Bézier Arcs**: Circles and ellipses are generated by sweeping past $360^\circ$ ($2\pi + \text{overlap}$) across cubic Bézier curves with varying radial perturbations.
+- **Rhombus (Diamond)**: Constructed as a 4-vertex polygon (`Top`, `Right`, `Bottom`, `Left`) with double-stroked jittered edges.
+- **Hachure Fill**: Sketched diagonal lines spaced evenly within the polygon boundaries.
+
+---
+
+## 🚀 Implemented Features in this Project (`Re-1`)
+
+| Feature | Shortcut | Description |
+| :--- | :---: | :--- |
+| **Handmade Circle** | `C` or `4` | Organic sketch circle/ellipse with overlapping arcs and radial wobbliness. |
+| **Handmade Rectangle** | `R` or `2` | Sketched box with double strokes and corner overshoots. |
+| **Handmade Rhombus** | `D` or `3` | Hand-drawn diamond polygon connecting top, right, bottom, and left vertices. |
+| **Handmade Bullet Point** | `B` or `5` | Hand-drawn bullet dot with inline text. Pressing `Enter` adds the next bullet point. |
+| **Handmade Text** | `T` or `6` | Click anywhere or double-click to add/edit multi-line text with casual typography. |
+| **Selection & Dragging** | `V` or `1` | Click and drag any element to move it across the canvas. |
+| **Properties Panel** | — | Customize stroke color, fill color, fill style (None / Hachure / Solid), stroke width, and roughness level. |
+| **Undo / Redo** | `Ctrl+Z` / `Ctrl+Y` | Full state history for all operations. |
+| **Export PNG** | — | 1-click export of the clean whiteboard drawing. |
+
+---
+
+## 📁 Project Structure
+
+```text
+Re-1/
+├── index.html        # Whiteboard UI with top toolbar, properties sidebar, and dual canvas
+├── style.css         # Modern styling inspired by Excalidraw's floating panels
+├── app.js            # Dual-canvas controller, event listeners, selection, drag, and text editor
+├── rough-engine.js   # Pure math hand-drawn engine (PRNG, double-stroke lines, shapes, hachure fill)
+├── test-engine.js    # Unit test suite verifying PRNG reproducibility and shape calculations
+└── README.md         # This documentation
+```
+
+---
+
+## 💻 How to Run
+
+### Method 1: Open Directly in Browser
+Double-click `index.html` or open it with any web browser (Chrome, Edge, Firefox, Safari). No build or bundler step required.
+
+### Method 2: Local Static Server
+```bash
+# Using npx serve:
+npx serve .
+
+# Using Python:
+python -m http.server 3000
+```
+Open `http://localhost:3000` in your browser.
+
+### Run Verification Unit Tests
+```bash
+node test-engine.js
+```
+Expected output:
+```text
+--- Testing Rough Drawing Engine ---
+✔ PRNG deterministic check passed
+✔ Rectangle drew 8 strokes without NaN
+✔ Rhombus drew 8 strokes without NaN
+✔ Circle drew 2 strokes without NaN
+✔ Bullet point drew dot and text label
+✔ Text multi-line rendered 2 lines correctly
+✔ Hachure fill generated 42 sketched strokes
+--- ALL ROUGH ENGINE TESTS PASSED ---
+```
