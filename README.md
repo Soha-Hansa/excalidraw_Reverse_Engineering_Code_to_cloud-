@@ -55,12 +55,6 @@ npx -y rea-agents setup --client antigravity --dry-run --json
 npx -y rea-agents setup --client antigravity --yes
 ```
 
-This registers the REA MCP server under your Antigravity environment (`~/.gemini/antigravity/mcp/rea/` or client configuration), exposing tools such as:
-- `capture_browser_scenario`: Headless/headed Playwright scenarios for dynamic application interaction.
-- `inspect_web_page`: Passive CDP DOM, accessibility, network, and resource inspection.
-- `analyze_web_bundle`: Static parsing of JavaScript chunks, bundles, and source maps.
-- `recover_javascript_sources`: Extraction and reconstruction of client-side scripts.
-
 ### Step 4: Verify REA Health
 Confirm that the MCP registration, tool definitions, and browser providers are operational:
 
@@ -143,19 +137,4 @@ python -m http.server 3000
 ```
 Open `http://localhost:3000` in your browser.
 
-### Run Verification Unit Tests
-```bash
-node test-engine.js
-```
-Expected output:
-```text
---- Testing Rough Drawing Engine ---
-✔ PRNG deterministic check passed
-✔ Rectangle drew 8 strokes without NaN
-✔ Rhombus drew 8 strokes without NaN
-✔ Circle drew 2 strokes without NaN
-✔ Bullet point drew dot and text label
-✔ Text multi-line rendered 2 lines correctly
-✔ Hachure fill generated 42 sketched strokes
---- ALL ROUGH ENGINE TESTS PASSED ---
 ```
